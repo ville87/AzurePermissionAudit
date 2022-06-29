@@ -13,7 +13,8 @@
     - Azure RBAC roles
     - Azure AD roles
 
-   It reports potentially dangerous role assignments. 
+   It reports potentially dangerous role assignments which could lead to privilege escalation and report the users which might be able to abuse
+   those dangerous role assignments. 
    Work is based on research by Compass Security and different blog posts / gists by Andy Robbins (@_wald0) of SpecterOps.    
 
 .OUTPUTS
@@ -32,7 +33,6 @@
 
     The subscription ID can be provided. If it is not provided, a list of available subscriptions is being displayed, 
     where the user can choose from.
-    For the Azure AD roles, the user will be prompted to provide the Tenant ID.
 
 .EXAMPLE
 
@@ -41,12 +41,13 @@
 .NOTES
 
    Author:   Ville Koch (@vegvisir87)
-   Version:  V00.20 (Unfinished)
-   Date:     28.06.2022
+   Version:  V01.00 (beta...)
+   Date:     29.06.2022
    
    History:
    08.04.2022 V.Koch initial creation
-   28.06.2022 First release to test...
+   28.06.2022 Major overhaul
+   29.06.2022 First release to test...
    
 #>
 ############################## script params section ########################
@@ -71,7 +72,7 @@ BEGIN{
     [array]$DangerousGraphPermissionsList = @("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8,RoleManagement.ReadWrite.Directory","06b708a9-e830-4db3-a914-8e69da51d44f,AppRoleAssignment.ReadWrite.All")
     [array]$DangerousGraphPermissions = $DangerousGraphPermissionsList | ConvertFrom-Csv -Header $CSVHeader
 
-    # Collection of different roles is based on the blog post https://posts.specterops.io/azure-privilege-escalation-via-service-principal-abuse-210ae2be2a5
+    # Collection of different roles is based on the following blog post https://posts.specterops.io/azure-privilege-escalation-via-service-principal-abuse-210ae2be2a5
     # Define dangerous Azure AD roles
     [array]$MostDangerousAzADRBACRoles = @("Global Administrator","Privileged Role Administrator","Privileged Authentication Administrator")
     [array]$PotentiallyDangerousAzADRBACRoles = @("Application Administrator","Authentication Administrator","Azure AD joined device local administrator","Cloud Application Administrator","Cloud device Administrator","Exchange Administrator","Groups Administrator","Helpdesk Administrator","Hybrid Identity Administrator","Intune Administrator","Password Administrator","User Administrator")
@@ -149,7 +150,7 @@ PROCESS
         printInfo -info "Done!" -level "INFO"
         
         ################### Connect and get token ###################
-        printInfo -info "Connecting to Azure. This will start the authentication process..." -level "INFO"
+        printInfo -info "Connecting to Azure with the Az PowerShell module. This will start the authentication process..." -level "INFO"
         Connect-AzAccount
         if($subscriptionID -ne ""){
             printInfo -info "Setting context to the provided subscription..." -level "INFO"
@@ -167,6 +168,9 @@ PROCESS
             Get-AzSubscription -SubscriptionId $chosensub | Set-AzContext
             printInfo -info "Set context to subscription $chosensub" -level "INFO"
         }
+        $tenantId = (Get-AzContext).Tenant.Id
+        printInfo -info "Connecting to Azure AD tenant $tenantId (based on provided subscription) with the AzureAD PowerShell module..." -level "INFO"
+        Connect-AzureAD -TenantId $tenantId
         printInfo -info "Done!" -level "INFO"
 
         ############################################################################
@@ -270,7 +274,7 @@ PROCESS
         $approleassignmentcount = ($AppRoleAssignments | measure).Count
         printInfo -info "Found $approleassignmentcount AppRoleAssignments of service principals" -level "INFO"
 
-        ### Export those into CSV
+        # Export those into CSV
         $MSGraphAppRolecsvexport = "$scriptpath\MSGraphAppRoles_$chosensub"+"_"+"$DateTimeString.csv"
         printInfo -info "Exporting to the CSV file $MSGraphAppRolecsvexport" -level "INFO"
         $AppRoleAssignments | Export-CSV -NoTypeInformation -Path $MSGraphAppRolecsvexport
@@ -281,7 +285,7 @@ PROCESS
         ForEach ($AppRoleAssignment in $AppRoleAssignments){
             $combinedobject = $null
             if($DangerousGraphPermissions.Id -contains $AppRoleAssignment.appRoleId){
-                # add the content of the current role assignment plus an extra property (the graph permission name) to an object
+                # add the content of the current role assignment plus extra property (the graph permission name) to an object
                 $combinedobject += $AppRoleAssignment
                 $graphpermissionname = $DangerousGraphPermissions | Where-Object { $_.Id -like $AppRoleAssignment.appRoleId} | select -ExpandProperty Permission
                 $combinedobject | Add-Member -Name 'appRoleName' -Type NoteProperty -Value $graphpermissionname
@@ -289,7 +293,7 @@ PROCESS
             }
         }
         #
-        # TODO: Do we also check on dangerous app role assignments of users? Currently we cover only service principals...
+        # TODO: Do we also check on dangerous MS Graph API app role assignments of users? Currently we cover only service principals...
         # If yes, the above part can be copied and modified for the users (userdata we have already collected in variable $TestUsersObjects)
         # 
         
@@ -303,9 +307,6 @@ PROCESS
         ############################################################################
 
         printInfo -info "Collecting Azure AD role assignments" -level "INFO"
-        # ask for tenant ID
-        $tenantId = Read-Host "Please provide the tenant ID to assess"
-        Connect-AzureAD -TenantId $tenantId
         # Build our users and roles object
         $UserRoles = Get-AzureADDirectoryRole | ForEach-Object {
                 
@@ -333,8 +334,8 @@ PROCESS
         $UserRoles | Export-Csv -NoTypeInformation -Path $AzADRoleAsscsvexport
 
         # Now we check only service principals
-        $DangerousAzADRoleAssignments = $null
-        $PotentiallyDangerousAzADRoleAssignments = $null
+        $DangerousAzADRoleAssignments = @()
+        $PotentiallyDangerousAzADRoleAssignments = @()
         printInfo -info "Checking for dangerous roles in the collected data" -level "INFO"
         $SPUserRoles = $UserRoles | where-object { $_.MemberType -eq "ServicePrincipal" }
         foreach($SPUserRole in $SPUserRoles){
@@ -421,18 +422,76 @@ PROCESS
             $dangerousAzADRoleexists = $true
         }
         if(($PotentialSPAbuseAzADUsersCount -gt 0) -and ($dangerousAzADRoleexists)){
-            printInfo -info "Please note, that the following users / service principals could abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure AD roles assigned which allow them to modify the affected applications:" -level "WARNING"
+            printInfo -info "Please note, that the following users / service principals might be able to abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure AD roles assigned which allow them to modify the affected applications:" -level "WARNING"
             $PotentialSPAbuseAzADUsers
         }
 
         Write-host "############################################################################"
-        # 
-        # TODO: We have to check first which of the previously listed ones are in the Subscription of the following ones.
-        # 
-        # 
+        printInfo -info "Report of found issues regarding Azure RBAC roles..." -level "INFO"
+        # We have to check first which of the previously listed ones are in the Subscription of the dangerous RBAC role assignments, otherwise they are not relevant for reporting.
+
+        # For MS Graph API:
+        if(($PotentialSPAbuseRBACUsersCount -gt 0) -and ($DangerousMSGraphAssignmentCount -gt 0)){
+            foreach($DangerousMSGraphAssignmententry in $DangerousMSGraphAssignments){
+                printInfo -info "Checking the dangerous MS Graph API AppRoleAssignment:" -level "INFO"
+                $DangerousMSGraphAssignmententry
+                # First we need to get the subscriptionId by using the AppDisplayName. If there is a better way, please improve :)
+                $appdisplayname = $DangerousMSGraphAssignmententry.principalDisplayName
+                $subscriptionId = Get-AzResource -Name $appdisplayname | select -ExpandProperty SubscriptionId # Note that this does not return anything for enterprise apps not deployed in a subscription, so we set it to Unknown!
+                if($null -eq $subscriptionId){ $subscriptionId = "Unknown" }
+                printInfo -info "Subscription of the current AppRoleAssignment is: $subscriptionId" -level "INFO"
+                $SPAbuseRBACUsers = @()
+                foreach($PotentialSPAbuseRBACUser in $PotentialSPAbuseRBACUsers){
+                    # Since we cannot reliably get the corresponding subscriptionId, we currently also list entries with subscriptionId of "Unknown" as potential privesc targets. 
+                    # TODO: It should be checked, how this can be more reliably verified!
+                    if(($PotentialSPAbuseRBACUser.Scope -contains $subscriptionId) -or ($subscriptionId -eq "Unknown")){
+                        $SPAbuseRBACUsers += $PotentialSPAbuseRBACUser
+                    }
+                }
+                $SPAbuseRBACUsersCount = ($SPAbuseRBACUsers | measure).Count
+                if($SPAbuseRBACUsersCount -gt 0){
+                    printInfo -info "The following identities might be able to abuse this AppRoleAssignment for Privilege Escalation:" -level "WARNING"
+                    $SPAbuseRBACUsers
+                }else{
+                    printInfo -info "No identities found which could abuse this AppRoleAssignment." -level "INFO"
+                }
+            }
+            Write-host "############################################################################"
+        }
+
+        # For Azure AD roles:
         if(($PotentialSPAbuseRBACUsersCount -gt 0) -and ($dangerousAzADRoleexists)){
-            printInfo -info "Please note, that the following users / service principals might be able to (depending on the affected subscription) abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure RBAC roles assigned which allow them to modify the affected applications:" -level "WARNING"
-            $PotentialSPAbuseRBACUsers
+            # First, combine the $PotentiallyDangerousAzADRoleAssignments and $DangerousAzADRoleAssignments to $DangerousAzADRoleAssignmentsCombined
+            # This was we can go through Service Principals with multiple role assignments only once
+            $DangerousAzADRoleAssignmentsCombined = @()
+            foreach($DangerousAzADRoleAssignmentitem in $DangerousAzADRoleAssignments) { $DangerousAzADRoleAssignmentsCombined += $DangerousAzADRoleAssignmentitem}
+            foreach($PotentiallyDangerousAzADRoleAssignmentitem in $PotentiallyDangerousAzADRoleAssignments) { $DangerousAzADRoleAssignmentsCombined += $PotentiallyDangerousAzADRoleAssignmentitem}
+            
+            # now check their corresponding apps and what subscription is affected, to check if any of the gathered RBAC user permissions could be abused...
+            $uniqueSPIDs = $DangerousAzADRoleAssignmentsCombined.MemberID | select -Unique
+            foreach($uniqueSPID in $uniqueSPIDs){
+                $CurrentSPAzADRoleAssignments = ($DangerousAzADRoleAssignmentsCombined | Where-Object { $_.MemberID -like $uniqueSPID} | select -ExpandProperty RoleDisplayName)
+                printInfo -info "Checking the dangerous Azure AD role assignments (Roles: $($CurrentSPAzADRoleAssignments -join ',')) of the service principal $uniqueSPID" -level "INFO"
+                $CurrentSPSubscriptionId = Get-AzResource -Name (Get-AzADServicePrincipal -ObjectId $uniqueSPID).DisplayName | select -ExpandProperty SubscriptionId # Note that this does not return anything for enterprise apps not deployed in a subscription, so we set it to Unknown!
+                if($null -eq $CurrentSPSubscriptionId){ $CurrentSPSubscriptionId = "Unknown" }
+                printInfo -info "Subscription of the current service principals resource is: $subscriptionId" -level "INFO"
+                $SPAbuseAZADUsers = @()
+                foreach($PotentialSPAbuseRBACUser in $PotentialSPAbuseRBACUsers){
+                    # Since we cannot reliably get the corresponding subscriptionId, we currently also list entries with subscriptionId of "Unknown" as potential privesc targets. 
+                    # TODO: It should be checked, how this can be more reliably verified!
+                    if(($PotentialSPAbuseRBACUser.Scope -contains $CurrentSPSubscriptionId) -or ($CurrentSPSubscriptionId -eq "Unknown")){
+                        $SPAbuseAZADUsers += $PotentialSPAbuseRBACUser
+                    }
+                }
+                $SPAbuseAZADUsersCount = ($SPAbuseAZADUsers | measure).Count
+                if($SPAbuseAZADUsersCount -gt 0){
+                    printInfo -info "The following identities might be able to abuse this service principal for Privilege Escalation:" -level "WARNING"
+                    $SPAbuseAZADUsers
+                }else{
+                    printInfo -info "No identities found which could abuse this AppRoleAssignment." -level "INFO"
+                }
+            }
+
             Write-host "############################################################################"
         }
         printInfo -info "Done." -level "INFO"
