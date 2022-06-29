@@ -61,6 +61,8 @@ BEGIN{
     if($scriptPath -eq ''){ $scriptPath = (Get-Location).Path }
     [string]$DateTimeString         = Get-Date -Format 'dd_MM_yyyy-HH_mm_ss'
     [string]$loggingenabled         = $true # if set to true, write to local logfile
+    [bool]$Transcript               = $true # if set to true, Transcript file is created
+    [string]$TranscriptLogFile      = "$scriptPath\TranscriptFile_$DateTimeString.log"
     [string]$logfile				= "$DateTimeString"+"-azurepermissionsscriptlog.log"
     [string]$logfilepath			= "$scriptPath\$logfile"
     [string]$MSGraphURL             = "https://graph.microsoft.com"
@@ -82,10 +84,9 @@ BEGIN{
     # Collection of Azure RBAC roles which allow an identity to potentially abuse a high privileged service principal
     [array]$PotentialSPAbuseRBACRoles = @("Owner","Contributor","Automation Contributor","User Access Administrator")
 
-    # Set VerbosePreference if variable $Verbose is set to true
-    $oldverbose = $VerbosePreference
-    if($Verbose -eq $True){
-        $VerbosePreference = "continue"
+    # Start script transcript if Transcript is set to true
+    if($Transcript){
+        Start-Transcript -Path $TranscriptLogFile
     }
     
     ############################## FUNCTIONS section #############################
@@ -509,6 +510,8 @@ END
         printInfo -info "Script ended with ErrorLevel: $ErrorLevel" -level "WARNING"
     }
     printInfo -info "+++++++++++++++++++ SCRIPT END +++++++++++++++++++++++++++" -level "INFO"
-    $VerbosePreference = $oldverbose
+    if($Transcript){
+        Stop-Transcript
+    }
     Exit $ErrorLevel;
 }
