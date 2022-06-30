@@ -15,7 +15,13 @@
 
    It reports potentially dangerous role assignments which could lead to privilege escalation and report the users which might be able to abuse
    those dangerous role assignments. 
-   Work is based on research by Compass Security and different blog posts / gists by Andy Robbins (@_wald0) of SpecterOps.    
+   Work is based on research by Compass Security and different blog posts / gists by Andy Robbins (@_wald0) of SpecterOps.
+
+   Note: If the script hangs during the Connect-AzAccount step, this might be due to other accounts still being logged in, which sometimes breaks
+   the PowerShell console somehow. In that case, clear all the logins with: Clear-AzContext -Scope CurrentUser -Force
+   If this still doesn't help, remove the #REQUIRES -RunAsAdministrator line and rerun the script from a non-elevated PowerShell session. (Make
+   sure that all necessary PowerShell modules are already installed!)
+   List logged in accounts with: Get-AzContext -ListAvailable
 
 .OUTPUTS
 
