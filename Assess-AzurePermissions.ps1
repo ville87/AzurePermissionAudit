@@ -15,7 +15,7 @@
 
    It reports potentially dangerous role assignments which could lead to privilege escalation and report the users which might be able to abuse
    those dangerous role assignments. 
-   Work is based on research by Compass Security and different blog posts / gists by Andy Robbins (@_wald0) of SpecterOps.
+   Work is based on research by Compass Security (@compasssecurity) and different blog posts / gists by Andy Robbins (@_wald0) of SpecterOps.
 
    Note: If the script hangs during the Connect-AzAccount step, this might be due to other accounts still being logged in, which sometimes breaks
    the PowerShell console somehow. In that case, clear all the logins with: Clear-AzContext -Scope CurrentUser -Force
@@ -27,6 +27,7 @@
 
    For the collected data (users, service principals, role assignments etc.) CSV exports are created.
    Those are stored in the current working directory with the naming "<MemberType>_<SubscriptionID or TenantID>_dd_MM_yyyy-HH_mm_ss.csv"
+   The findings are stored in a text file with the naming "Assessment_Findings_dd_MM_yyyy-HH_mm_ss.log"
 
    Logfiles:
        - .\<datetimestring>-azurepermissionsscriptlog.log
@@ -47,13 +48,14 @@
 .NOTES
 
    Author:   Ville Koch (@vegvisir87)
-   Version:  V01.00 (beta...)
-   Date:     29.06.2022
+   Version:  V01.10 (beta)
+   Date:     01.07.2022
    
    History:
    08.04.2022 V.Koch initial creation
    28.06.2022 Major overhaul
    29.06.2022 First release to test...
+   01.07.2022 Beta version for review
    
 #>
 ############################## script params section ########################
