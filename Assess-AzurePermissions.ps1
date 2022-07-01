@@ -73,6 +73,7 @@ BEGIN{
     [string]$logfilepath			= "$scriptPath\$logfile"
     [string]$MSGraphURL             = "https://graph.microsoft.com"
     [array]$requiredModules         = @("Az.ResourceGraph","Az.Accounts","Az.Resources","AzureAD")
+    [string]$findingsReportfile     = "$scriptPath\Assessment_Findings_$DateTimeString.log"
     
     # The following part is used to create the array containing the dangerous MS graph permissions
     # MS documentation of app role IDs: https://docs.microsoft.com/en-us/graph/permissions-reference#all-permissions-and-ids
@@ -406,47 +407,73 @@ PROCESS
         ############################################################################
         Write-host "############################################################################"
         printInfo -info "Report of found issues regarding MS Graph API permissions..." -level "INFO"
+        "+++++++++++++++++++++ MS Graph API Permissions +++++++++++++++++++++" |Out-File -FilePath $findingsReportfile -Append
         if($DangerousMSGraphAssignmentCount -gt 0){
             printInfo -info "Found $DangerousMSGraphAssignmentCount dangerous MS Graph API app role assignments:" -level "WARNING"
             $DangerousMSGraphAssignments
+            # Log findings to report file
+            "Found $DangerousMSGraphAssignmentCount dangerous MS Graph API app role assignments:" |Out-File -FilePath $findingsReportfile -Append
+            $DangerousMSGraphAssignments |Out-File -FilePath $findingsReportfile -Append
+            "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++`r`n" |Out-File -FilePath $findingsReportfile -Append
         }else{
             printInfo -info "No dangerous MS Graph API app role assignments were found." -level "INFO"
+            "No dangerous MS Graph API app role assignments were found." |Out-File -FilePath $findingsReportfile -Append
         }
 
         Write-host "############################################################################"
         printInfo -info "Report of found issues regarding Azure AD roles..." -level "INFO"
+        "+++++++++++++++++++++ Azure AD Role Assignments +++++++++++++++++++++" |Out-File -FilePath $findingsReportfile -Append
         if($DangerousAzADRoleAssignmentsCount -gt 0){
             printInfo -info "Found $DangerousAzADRoleAssignmentsCount dangerous Azure AD role assignments" -level "WARNING"
             $DangerousAzADRoleAssignments
+            # Log findings to report file
+            "Found $DangerousAzADRoleAssignmentsCount dangerous Azure AD role assignments" |Out-File -FilePath $findingsReportfile -Append
+            $DangerousAzADRoleAssignments |Out-File -FilePath $findingsReportfile -Append
+            "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++`r`n" |Out-File -FilePath $findingsReportfile -Append
         }
         if($PotentiallyDangerousAzADRoleAssignmentsCount -gt 0){
             printInfo -info "Found $PotentiallyDangerousAzADRoleAssignmentsCount potentially dangerous Azure AD role assignments:" -level "WARNING"
             $PotentiallyDangerousAzADRoleAssignments
+            # Log findings to report file
+            "Found $PotentiallyDangerousAzADRoleAssignmentsCount potentially dangerous Azure AD role assignments:" |Out-File -FilePath $findingsReportfile -Append
+            $PotentiallyDangerousAzADRoleAssignments |Out-File -FilePath $findingsReportfile -Append
+            "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++`r`n" |Out-File -FilePath $findingsReportfile -Append
         }
         if(($PotentiallyDangerousAzADRoleAssignmentsCount -eq 0) -and ($DangerousAzADRoleAssignmentsCount -eq 0)){
             printInfo -info "No dangerous Azure AD role assignments were found." -level "INFO"
+            "No dangerous Azure AD role assignments were found."|Out-File -FilePath $findingsReportfile -Append
         }else{
             $dangerousAzADRoleexists = $true
         }
         if(($PotentialSPAbuseAzADUsersCount -gt 0) -and ($dangerousAzADRoleexists)){
-            printInfo -info "Please note, that the following users / service principals might be able to abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure AD roles assigned which allow them to modify the affected applications:" -level "WARNING"
+            printInfo -info "The following users / service principals might be able to abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure AD roles assigned which allow them to modify the affected applications:" -level "WARNING"
             $PotentialSPAbuseAzADUsers
+            # Log findings to report file
+            "The following users / service principals might be able to abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure AD roles assigned which allow them to modify the affected applications:"  |Out-File -FilePath $findingsReportfile -Append
+            $PotentialSPAbuseAzADUsers |Out-File -FilePath $findingsReportfile -Append
+            "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++`r`n" |Out-File -FilePath $findingsReportfile -Append
         }
 
         Write-host "############################################################################"
         printInfo -info "Report of found issues regarding Azure RBAC roles..." -level "INFO"
+        "+++++++++++++++++++++ Azure RBAC Roles +++++++++++++++++++++" |Out-File -FilePath $findingsReportfile -Append
+        # The goal here is to report users with RBAC roles which could abuse one of the previously reported highly privileged service principals.
         # We have to check first which of the previously listed ones are in the Subscription of the dangerous RBAC role assignments, otherwise they are not relevant for reporting.
-
+        
         # For MS Graph API:
         if(($PotentialSPAbuseRBACUsersCount -gt 0) -and ($DangerousMSGraphAssignmentCount -gt 0)){
             foreach($DangerousMSGraphAssignmententry in $DangerousMSGraphAssignments){
                 printInfo -info "Checking the dangerous MS Graph API AppRoleAssignment:" -level "INFO"
                 $DangerousMSGraphAssignmententry
+                # Log findings to report file
+                "Checking the dangerous MS Graph API AppRoleAssignment:"  |Out-File -FilePath $findingsReportfile -Append
+                $DangerousMSGraphAssignmententry |Out-File -FilePath $findingsReportfile -Append
                 # First we need to get the subscriptionId by using the AppDisplayName. If there is a better way, please improve :)
                 $appdisplayname = $DangerousMSGraphAssignmententry.principalDisplayName
                 $subscriptionId = Get-AzResource -Name $appdisplayname | select -ExpandProperty SubscriptionId # Note that this does not return anything for enterprise apps not deployed in a subscription, so we set it to Unknown!
                 if($null -eq $subscriptionId){ $subscriptionId = "Unknown" }
                 printInfo -info "Subscription of the current AppRoleAssignment is: $subscriptionId" -level "INFO"
+                "Subscription of the current AppRoleAssignment is: $subscriptionId"  |Out-File -FilePath $findingsReportfile -Append
                 $SPAbuseRBACUsers = @()
                 foreach($PotentialSPAbuseRBACUser in $PotentialSPAbuseRBACUsers){
                     # Since we cannot reliably get the corresponding subscriptionId, we currently also list entries with subscriptionId of "Unknown" as potential privesc targets. 
@@ -459,8 +486,12 @@ PROCESS
                 if($SPAbuseRBACUsersCount -gt 0){
                     printInfo -info "The following identities might be able to abuse this AppRoleAssignment for Privilege Escalation:" -level "WARNING"
                     $SPAbuseRBACUsers
+                    # Log findings to report file
+                    "The following identities might be able to abuse this AppRoleAssignment for Privilege Escalation:" |Out-File -FilePath $findingsReportfile -Append
+                    $SPAbuseRBACUsers |Out-File -FilePath $findingsReportfile -Append
                 }else{
                     printInfo -info "No identities found which could abuse this AppRoleAssignment." -level "INFO"
+                    "No identities found which could abuse this AppRoleAssignment."|Out-File -FilePath $findingsReportfile -Append
                 }
             }
             Write-host "############################################################################"
@@ -479,9 +510,11 @@ PROCESS
             foreach($uniqueSPID in $uniqueSPIDs){
                 $CurrentSPAzADRoleAssignments = ($DangerousAzADRoleAssignmentsCombined | Where-Object { $_.MemberID -like $uniqueSPID} | select -ExpandProperty RoleDisplayName)
                 printInfo -info "Checking the dangerous Azure AD role assignments (Roles: $($CurrentSPAzADRoleAssignments -join ',')) of the service principal $uniqueSPID" -level "INFO"
+                "Checking the dangerous Azure AD role assignments (Roles: $($CurrentSPAzADRoleAssignments -join ',')) of the service principal $uniqueSPID" |Out-File -FilePath $findingsReportfile -Append
                 $CurrentSPSubscriptionId = Get-AzResource -Name (Get-AzADServicePrincipal -ObjectId $uniqueSPID).DisplayName | select -ExpandProperty SubscriptionId # Note that this does not return anything for enterprise apps not deployed in a subscription, so we set it to Unknown!
                 if($null -eq $CurrentSPSubscriptionId){ $CurrentSPSubscriptionId = "Unknown" }
                 printInfo -info "Subscription of the current service principals resource is: $subscriptionId" -level "INFO"
+                "Subscription of the current service principals resource is: $subscriptionId" |Out-File -FilePath $findingsReportfile -Append
                 $SPAbuseAZADUsers = @()
                 foreach($PotentialSPAbuseRBACUser in $PotentialSPAbuseRBACUsers){
                     # Since we cannot reliably get the corresponding subscriptionId, we currently also list entries with subscriptionId of "Unknown" as potential privesc targets. 
@@ -494,8 +527,12 @@ PROCESS
                 if($SPAbuseAZADUsersCount -gt 0){
                     printInfo -info "The following identities might be able to abuse this service principal for Privilege Escalation:" -level "WARNING"
                     $SPAbuseAZADUsers
+                    # Log findings to report file
+                    "The following identities might be able to abuse this service principal for Privilege Escalation:"|Out-File -FilePath $findingsReportfile -Append
+                    $SPAbuseAZADUsers|Out-File -FilePath $findingsReportfile -Append
                 }else{
                     printInfo -info "No identities found which could abuse this AppRoleAssignment." -level "INFO"
+                    "No identities found which could abuse this AppRoleAssignment."|Out-File -FilePath $findingsReportfile -Append
                 }
             }
 
@@ -512,6 +549,7 @@ END
 {
     if ($ErrorLevel -eq "0") {
         printInfo -info "Script ended succesfully" -level "INFO"
+        printInfo -info "The reported findings can be found here: $findingsReportfile" -level "INFO"
     }else{
         printInfo -info "Script ended with ErrorLevel: $ErrorLevel" -level "WARNING"
     }
