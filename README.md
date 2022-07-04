@@ -3,7 +3,6 @@ Script to assess permissions and roles in Azure to check if there is any possibl
 
 The script collects data about service principals:
 - Assigned MS Graph API permissions
-- Assigned Azure RBAC roles
 - Assigned Azure AD roles
 
 It then checks first, if any of those are
@@ -13,7 +12,7 @@ It then checks first, if any of those are
 
 Afterwards it checks, if any user was assigned
 - Azure AD Roles, which could allow the user to abuse one of those service principals: Application Administrator, Cloud Application Administrator, Hybrid Identity Administrator, Directory Synchronization Account, Partner Tier1 Support, Partner Tier2 Support
-- Azure RBAC Roles, which could allow the user to abuse on of those service principals: Owner, Contributor, Automation Contributor, User Access Administrator
+- Azure RBAC Roles, which could allow the user to abuse one of those service principals: Owner, Contributor, Automation Contributor, User Access Administrator
 
 Those are then reported to the console output.
 
