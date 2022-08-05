@@ -16,8 +16,69 @@ Afterwards it checks, if any user was assigned
 
 Those are then reported to the console output.
 
-## Limitations
-- Currently, it is not checked if any user was provided with dangerous MS Graph API permissions.
-- There is some bug where the script often hangs when connecting to Azure AD. If this is the case, clear all the logins with: Clear-AzContext -Scope CurrentUser -Force
-  If this still doesn't help, remove the #REQUIRES -RunAsAdministrator line and rerun the script from a non-elevated PowerShell session. (Make sure that all necessary PowerShell modules are already installed!). Also, manually connecting beforehand with Connect-AzAccount -TenantId <TenantId> might help.
+## Limitations (TODO)
+- Currently, it is not checked if any user was provided with dangerous MS Graph API permissions which could allow to abuse one of the highly privileged service principals.
+- There is some bug where the script often hangs when connecting to Azure AD. If this is the case, try to manually connect in PowerShell before running the script with:   
+  `Connect-AzAccount -TenantId <TenantId>`    
  
+## Example Output
+The following output is an example from a test environment with overprivileged service principals and abuse paths:
+
+```
+############################################################################
+[10:49] - INFO - Report of found issues regarding MS Graph API permissions...
+[10:49] - WARNING - Found 2 dangerous MS Graph API app role assignments:
+appreg-Test-app --> AppRoleAssignment.ReadWrite.All
+fn-test-kov-app1 --> RoleManagement.ReadWrite.Directory
+############################################################################
+[10:49] - INFO - Report of found issues regarding Azure AD roles...
+[10:49] - WARNING - Found 1 dangerous Azure AD role assignments
+appreg-Test-app (Id: 3a7fb636-6233-4f33-890f-97384a06b05b) --> Privileged Role Administrator
+[10:49] - WARNING - Found 2 potentially dangerous Azure AD role assignments:
+appreg-Test-app (Id: 3a7fb636-6233-4f33-890f-97384a06b05b) --> Application Administrator
+vm-test-kov (Id: 55c85712-9a0b-4c7f-b639-f11f97c0bace) --> Authentication Administrator
+[10:49] - WARNING - The following identities might be able to abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure AD roles assigned which allow them to modify the affected applications:
+appreg-Test-app --> Application Administrator
+############################################################################
+[10:49] - INFO - Report of found issues regarding Azure RBAC roles...
+[10:49] - INFO - Checking the dangerous MS Graph API AppRoleAssignment:
+
+principalId          : 3a7fb636-6233-4f33-890f-97384a06b05b
+principalDisplayName : appreg-Test-app
+appRoleName          : AppRoleAssignment.ReadWrite.All
+
+[10:49] - INFO - Subscription of the current AppRoleAssignment is:
+[10:49] - INFO - No identities found which could abuse this AppRoleAssignment.
+----------------------------------------------------------------------------
+[10:49] - INFO - Checking the dangerous MS Graph API AppRoleAssignment:
+
+principalId          : f11aa11e-275a-4830-be99-e1111c65623d
+principalDisplayName : fn-test-kov-app1
+appRoleName          : RoleManagement.ReadWrite.Directory
+
+[10:49] - INFO - Subscription of the current AppRoleAssignment is: abc1def2-9d6c-45ff-b7bc-12abcd123d24
+[10:49] - WARNING - The following identities might be able to abuse this AppRoleAssignment for Privilege Escalation:
+OrgABC (ObjectId: a460121f-416d-43cf-b228-d7abeefab9ac) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+GA (ObjectId: 1234abcd-1bf6-4e2d-8f8c-a8e441f91a43) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+fn-test-kov-app1 (ObjectId: f11aa11e-275a-4830-be99-e1111c65623d) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+DevOps Timmy (ObjectId: 1a45d8a3-5b7d-4033-ab88-8034cd7612c3) with role Contributor on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24/resourceGroups/rg-test-kov/providers/Microsoft.Web/sites/fn-test-kov-app1
+bloodhoundtest (ObjectId: 6200256a-f4b2-4dd1-a980-8d0cd3ea5ccd) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24/resourcegroups/rg-test-kov/providers/Microsoft.Web/sites/fn-test-kov-app1
+testusersub (ObjectId: 1dd16632-19c1-4c8f-a6ea-053370482d3c) with role Contributor on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+----------------------------------------------------------------------------
+############################################################################
+[10:49] - INFO - Checking the dangerous Azure AD role assignments (Roles: Privileged Role Administrator,Application Administrator) of the service principal 3a7fb636-6233-4f33-890f-97384a06b05b
+[10:49] - INFO - Subscription of the current service principals resource is: Unknown (Enterprise App?)
+[10:49] - INFO - No identities found which could abuse this AppRoleAssignment.
+############################################################################
+[10:49] - INFO - Checking the dangerous Azure AD role assignments (Roles: Authentication Administrator) of the service principal 55c85712-9a0b-4c7f-b639-f11f97c0bace
+[10:49] - INFO - Subscription of the current service principals resource is: abc1def2-9d6c-45ff-b7bc-12abcd123d24
+[10:49] - WARNING - The following identities might be able to abuse this service principal for Privilege Escalation:
+OrgABC (ObjectId: a460121f-416d-43cf-b228-d7abeefab9ac) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+GA (ObjectId: 1234abcd-1bf6-4e2d-8f8c-a8e441f91a43) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+fn-test-kov-app1 (ObjectId: f11aa11e-275a-4830-be99-e1111c65623d) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+bloodhoundtest2 (ObjectId: 2a3132ef-0ac3-47c4-b432-bb30e6311068) with role Owner on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24/resourcegroups/rg-vmtest/providers/Microsoft.Compute/virtualMachines/vm-test-kov
+bloodhoundtest (ObjectId: 6200256a-f4b2-4dd1-a980-8d0cd3ea5ccd) with role Contributor on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24/resourcegroups/rg-vmtest/providers/Microsoft.Compute/virtualMachines/vm-test-kov
+testusersub (ObjectId: 1dd16632-19c1-4c8f-a6ea-053370482d3c) with role Contributor on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24
+testuserrg (ObjectId: 31230ef3-6083-4226-b817-c44f82aa5726) with role Contributor on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24/resourceGroups/rg-vmtest
+############################################################################
+```
