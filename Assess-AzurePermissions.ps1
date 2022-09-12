@@ -20,6 +20,8 @@
 
    Note: If the script hangs during the Connect-AzAccount step, try to manually connect in PowerShell before running the script with: 
    Connect-AzAccount -TenantId <TenantId>
+   
+   The RunAsAdministrator is required because it will install some PowerShell modules (check variable $requiredModules), if they're not already installed.
 
    TODO: Add check if there are users with MS Graph API permissions which would allow to abuse a highly privileged Service Principal!
 
