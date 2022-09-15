@@ -10,6 +10,8 @@ It then checks first, if any of those are
 - Dangerous Azure AD Roles: Global Administrator, Privileged Role Administrator, Privileged Authentication Administrator
 - Potentially Dangerous Azure AD Roles: Application Administrator, Authentication Administrator, Azure AD joined device local administrator, Cloud Application Administrator, Cloud device Administrator, Exchange Administrator, Groups Administrator, Helpdesk Administrator, Hybrid Identity Administrator, Intune Administrator, Password Administrator, User Administrator
 
+> **_NOTE:_**  The difference between dangerous Azure AD roles and potentially dangerous Azure AD roles is, that the dangerous ones allow immediate control over Azure AD identities, while the potential ones could be used indirectly, to e.g. control an application in Azure which is assigned with high privileges (dangerous Azure AD roles)   
+
 Afterwards it checks, if any user was assigned
 - Azure AD Roles, which could allow the user to abuse one of those service principals: Application Administrator, Cloud Application Administrator, Hybrid Identity Administrator, Directory Synchronization Account, Partner Tier1 Support, Partner Tier2 Support
 - Azure RBAC Roles, which could allow the user to abuse one of those service principals: Owner, Contributor, Automation Contributor, User Access Administrator
