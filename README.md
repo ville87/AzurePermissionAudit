@@ -28,12 +28,14 @@ The following output is an example from a test environment with overprivileged s
 
 ```
 ############################################################################
-[10:49] - INFO - Report of found issues regarding MS Graph API permissions...
+Report of found issues regarding MS Graph API permissions:
+############################################################################
 [10:49] - WARNING - Found 2 dangerous MS Graph API app role assignments:
 appreg-Test-app --> AppRoleAssignment.ReadWrite.All
 fn-test-kov-app1 --> RoleManagement.ReadWrite.Directory
 ############################################################################
-[10:49] - INFO - Report of found issues regarding Azure AD roles...
+Report of found issues regarding Azure AD roles:
+############################################################################
 [10:49] - WARNING - Found 1 dangerous Azure AD role assignments
 appreg-Test-app (Id: 3a7fb636-6233-4f33-890f-97384a06b05b) --> Privileged Role Administrator
 [10:49] - WARNING - Found 2 potentially dangerous Azure AD role assignments:
@@ -42,7 +44,8 @@ vm-test-kov (Id: 55c85712-9a0b-4c7f-b639-f11f97c0bace) --> Authentication Admini
 [10:49] - WARNING - The following identities might be able to abuse the previously listed dangerous Azure AD role assignments for privilege escalation, since they have Azure AD roles assigned which allow them to modify the affected applications:
 appreg-Test-app --> Application Administrator
 ############################################################################
-[10:49] - INFO - Report of found issues regarding Azure RBAC roles...
+Report of found issues regarding Azure RBAC roles:
+############################################################################
 [10:49] - INFO - Checking the dangerous MS Graph API AppRoleAssignment:
 
 principalId          : 3a7fb636-6233-4f33-890f-97384a06b05b

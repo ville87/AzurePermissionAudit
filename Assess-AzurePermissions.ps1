@@ -264,7 +264,7 @@ PROCESS
         
         printInfo -info "Done!" -level "INFO"
                
-        ################### Dangerous API permissions ####################
+        ################### Dangerous API permissions of Service Principals #################### 
         # Get all service principals permissions
         printInfo -info "Collecting information about AppRoleAssignments in MS Graph API. This might take several minutes..." -level "INFO"
         $AffectedServicePrincipalIDs = ($TestSPObjects).id
@@ -298,11 +298,10 @@ PROCESS
                 $DangerousMSGraphAssignments += $combinedobject
             }
         }
-        #
-        # TODO: Do we also check on dangerous MS Graph API app role assignments of users? Currently we cover only service principals...
-        # If yes, the above part can be copied and modified for the users (userdata we have already collected in variable $TestUsersObjects)
-        # 
         
+        # TODO: Check on dangerous MS Graph API app role assignments of users. Currently we cover only service principals...
+        # (userdata we have already collected in variable $TestUsersObjects)
+
         $DangerousMSGraphAssignmentCount = ($DangerousMSGraphAssignments | measure).count
         printInfo -info "Done!" -level "INFO"
 
@@ -404,7 +403,8 @@ PROCESS
         ############################################################################
         ############################################################################
         Write-host "############################################################################"
-        printInfo -info "Report of found issues regarding MS Graph API permissions..." -level "INFO"
+        Write-host "Report of found issues regarding MS Graph API permissions:"
+        Write-host "############################################################################"
         "+++++++++++++++++++++ MS Graph API Permissions +++++++++++++++++++++" |Out-File -FilePath $findingsReportfile -Append
         if($DangerousMSGraphAssignmentCount -gt 0){
             printInfo -info "Found $DangerousMSGraphAssignmentCount dangerous MS Graph API app role assignments:" -level "WARNING"
@@ -419,7 +419,8 @@ PROCESS
         }
 
         Write-host "############################################################################"
-        printInfo -info "Report of found issues regarding Azure AD roles..." -level "INFO"
+        write-host "Report of found issues regarding Azure AD roles:"
+        Write-host "############################################################################"
         "+++++++++++++++++++++ Azure AD Role Assignments +++++++++++++++++++++" |Out-File -FilePath $findingsReportfile -Append
         if($DangerousAzADRoleAssignmentsCount -gt 0){
             printInfo -info "Found $DangerousAzADRoleAssignmentsCount dangerous Azure AD role assignments" -level "WARNING"
@@ -453,7 +454,8 @@ PROCESS
         }
 
         Write-host "############################################################################"
-        printInfo -info "Report of found issues regarding Azure RBAC roles..." -level "INFO"
+        Write-host "Report of found issues regarding Azure RBAC roles:"
+        Write-host "############################################################################"
         "+++++++++++++++++++++ Azure RBAC Roles +++++++++++++++++++++" |Out-File -FilePath $findingsReportfile -Append
         # The goal here is to report users with RBAC roles which could abuse one of the previously reported highly privileged service principals.
         # We have to check first which of the previously listed ones are in the Subscription of the dangerous RBAC role assignments, otherwise they are not relevant for reporting.
