@@ -37,6 +37,7 @@
     Script ExitCodes:
     # TODO: Add custom ExitCodes for different errors (failed login, permissions etc.)
     0 -  Success
+    3 -  No subscription is available! The provided account is missing permissions to read subscription data.
       
 .INPUTS
 
@@ -162,10 +163,15 @@ PROCESS
         if($subscriptionID -ne ""){
             printInfo -info "Setting context to the provided subscription..." -level "INFO"
             Get-AzSubscription -SubscriptionId $subscriptionID | Set-AzContext
+            $chosensub = $subscriptionID
         }else{
             # Get all available subscriptions and let the user choose which one to assess
             printInfo -info "No subscription was provided, listing available ones:" -level "INFO"
             $availablesubs = Get-AzSubscription
+            if(($availablesubs | Measure-Object).count -lt 1){
+                printInfo -info "No subscription is available! The provided account is missing permissions to read subscription data. Cannot continue..." -level "ERROR"
+                Exit 3
+            }
             foreach($availablesub in $availablesubs){
                 $subname = $availablesub.Name
                 $subid = $availablesub.Id
@@ -373,10 +379,9 @@ PROCESS
         
         # Prepare array for the results
         $PotentialSPAbuseRBACUsers = @()
-        $currentsub = Get-AzSubscription
-        printInfo -info "Collecting RBAC roles of users in the subscription $($currentsub.Name)." -level "INFO"
+        printInfo -info "Collecting RBAC roles of users in the subscription $chosensub." -level "INFO"
         # collect all assignments in the given subscription
-        $AllAzRBACAssignments = Get-AzRoleAssignment -Scope /subscriptions/$($currentsub.Id)
+        $AllAzRBACAssignments = Get-AzRoleAssignment -Scope /subscriptions/$chosensub
         
         # get all assignments with RBAC roles which could lead to service principal abuse
         foreach($AzRBACAssignment in $AllAzRBACAssignments){
