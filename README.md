@@ -16,7 +16,9 @@ Afterwards it checks, if any user was assigned
 - Azure AD Roles, which could allow the user to abuse one of those service principals: Application Administrator, Cloud Application Administrator, Hybrid Identity Administrator, Directory Synchronization Account, Partner Tier1 Support, Partner Tier2 Support
 - Azure RBAC Roles, which could allow the user to abuse one of those service principals: Owner, Contributor, Automation Contributor, User Access Administrator
 
-Those are then reported to the console output.
+Those are then reported to the console output.   
+
+The script will ask you twice to provide Azure credentials, because it uses both the Az module and the AzureAD module which have each their own connecting cmdlets.   
 
 ## Limitations (TODO)
 - Currently, it is not checked if any user was provided with dangerous MS Graph API permissions which could allow to abuse one of the highly privileged service principals.
