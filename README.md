@@ -22,7 +22,7 @@ The script will ask you twice to provide Azure credentials, because it uses both
 
 ## Limitations (TODO)
 - Currently, it is not checked if any user was provided with dangerous MS Graph API permissions which could allow to abuse one of the highly privileged service principals.
-- There is some bug where the script often hangs when connecting to Azure AD. If this is the case, make sure the PowerShell modules are installed, remove the `#REQUIRES -RunAsAdministrator` and manually connect in PowerShell before running the script in a non-elevated PowerShell session with:   
+- There is some bug where the script often hangs when connecting to Azure AD. If this is the case, manually connect in PowerShell before running the script in a non-elevated PowerShell session with:   
   `Connect-AzAccount -TenantId <TenantId>`    
  
 ## Example Output

@@ -1,5 +1,4 @@
 #REQUIRES -version 3.0
-#REQUIRES -RunAsAdministrator
 <#
 .SYNOPSIS
    Get all permissions (Azure AD roles, Azure RBAC roles and MS Graph API permissions) of Service Principals and Users for a given subscription.
@@ -20,8 +19,6 @@
 
    Note: If the script hangs during the Connect-AzAccount step, try to manually connect in PowerShell before running the script with: 
    Connect-AzAccount -TenantId <TenantId>
-   
-   The RunAsAdministrator is required because it will install some PowerShell modules (check variable $requiredModules), if they're not already installed.
 
    TODO: Add check if there are users with MS Graph API permissions which would allow to abuse a highly privileged Service Principal!
 
@@ -37,7 +34,8 @@
     Script ExitCodes:
     # TODO: Add custom ExitCodes for different errors (failed login, permissions etc.)
     0 -  Success
-    3 -  No subscription is available! The provided account is missing permissions to read subscription data.
+    2 -  Required PS modules are not installed.
+    3 -  No subscription is available to the provided account. Could be missing RBAC roles...
       
 .INPUTS
 
@@ -51,8 +49,8 @@
 .NOTES
 
    Author:   Ville Koch (@vegvisir87) Compass Security Switzerland
-   Version:  V01.20 (beta)
-   Date:     05.08.2022
+   Version:  V01.30 (beta)
+   Date:     20.09.2022
    
 #>
 ############################## script params section ########################
@@ -134,25 +132,28 @@ PROCESS
     try{
         ################### install necessary modules ###################
         printInfo -info "Checking PowerShell prerequisites..." -level "INFO"
-        # Install the required modules from PowerShell Gallery if not already installed
-        $psgallery = $false
-        
+        # Check if required modules are installed
+        $prerequisites = $true
+        $missingmodules = @()
         $installedModules = Get-Module -ListAvailable
         foreach($module in $requiredModules){
             if ($module -notin $installedModules.Name) {
-                printInfo -info "Module $module not installed. Installing it..." -level "INFO" 
-                if($psgallery -eq $false){
-                    printInfo -info "Set PSGallery as trusted installation source..." -level "INFO"
-                    # First trust the PSGallery source
-                    Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
-                    $psgallery = $true
-                }
-                printInfo -info "Installing module $module..." -level "INFO"
-                Install-Module -Name $module -AllowClobber -Force
+                printInfo -info "Module $module not installed!" -level "WARNING"
+                $missingmodules += $module
+                $prerequisites = $false
             }
-            # Import the module
-            printInfo -info "Importing module $module..." -level "INFO"
-            Import-Module $module
+        }
+        if($prerequisites -eq $true){
+            printInfo -info "Importing required PowerShell modules..." -level "INFO"
+            foreach($module in $requiredModules){
+                printInfo -info "Importing module $module..." -level "INFO"
+                Import-Module $module
+            }
+        }else{
+            # Required modules are not installed, informing the user and canceling script
+            $listmodules = $missingmodules -join ","
+            printInfo -info "The script cannot continue, because following modules are missing: $listmodules. `r`nPlease install them first and restart the PowerShell console." -level "ERROR"
+            Exit 2
         }
         printInfo -info "Done!" -level "INFO"
         
