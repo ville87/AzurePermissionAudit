@@ -48,9 +48,9 @@
 
 .NOTES
 
-   Author:   Ville Koch (@vegvisir87) Compass Security Switzerland
-   Version:  V01.30 (beta)
-   Date:     20.09.2022
+   Author:   Ville Koch (@vegvisir87), Compass Security Switzerland AG
+   Version:  V01.40 (beta)
+   Date:     21.09.2022
    
 #>
 ############################## script params section ########################
@@ -66,8 +66,8 @@ BEGIN{
     [string]$loggingenabled         = $true # if set to true, write to local logfile
     [bool]$Transcript               = $true # if set to true, Transcript file is created
     [string]$TranscriptLogFile      = "$scriptPath\TranscriptFile_$DateTimeString.log"
-    [string]$logfile				= "$DateTimeString"+"-azurepermissionsscriptlog.log"
-    [string]$logfilepath			= "$scriptPath\$logfile"
+    [string]$logfile                = "$DateTimeString"+"-azurepermissionsscriptlog.log"
+    [string]$logfilepath            = "$scriptPath\$logfile"
     [string]$MSGraphURL             = "https://graph.microsoft.com"
     [array]$requiredModules         = @("Az.ResourceGraph","Az.Accounts","Az.Resources","AzureAD")
     [string]$findingsReportfile     = "$scriptPath\Assessment_Findings_$DateTimeString.log"
@@ -80,8 +80,8 @@ BEGIN{
 
     # Collection of different roles is based on the following blog post https://posts.specterops.io/azure-privilege-escalation-via-service-principal-abuse-210ae2be2a5
     # Define dangerous Azure AD roles
-    [array]$MostDangerousAzADRBACRoles = @("Global Administrator","Privileged Role Administrator","Privileged Authentication Administrator")
-    [array]$PotentiallyDangerousAzADRBACRoles = @("Application Administrator","Authentication Administrator","Azure AD joined device local administrator","Cloud Application Administrator","Cloud device Administrator","Exchange Administrator","Groups Administrator","Helpdesk Administrator","Hybrid Identity Administrator","Intune Administrator","Password Administrator","User Administrator")
+    [array]$MostDangerousAzADRBACRoles = @("Global Administrator","Privileged Role Administrator","Privileged Authentication Administrator","Partner Tier2 Support")
+    [array]$PotentiallyDangerousAzADRBACRoles = @("Application Administrator","Authentication Administrator","Azure AD joined device local administrator","Cloud Application Administrator","Cloud device Administrator","Exchange Administrator","Groups Administrator","Helpdesk Administrator","Hybrid Identity Administrator","Intune Administrator","Password Administrator","User Administrator","Directory Writers")
     # Collection of Azure AD roles which allow an identity to potentially abuse high privileged service principals
     [array]$PotentialSPAbuseAzADRoles = @("Application Administrator","Cloud Application Administrator","Hybrid Identity Administrator","Directory Synchronization Account","Partner Tier1 Support","Partner Tier2 Support")
 
