@@ -89,3 +89,7 @@ testusersub (ObjectId: 1dd16632-19c1-4c8f-a6ea-053370482d3c) with role Contribut
 testuserrg (ObjectId: 31230ef3-6083-4226-b817-c44f82aa5726) with role Contributor on scope /subscriptions/abc1def2-9d6c-45ff-b7bc-12abcd123d24/resourceGroups/rg-vmtest
 ############################################################################
 ```
+# Credits
+The script was inspired by some of the great blog posts from @_wald0 at Specterops:
+- https://posts.specterops.io/azure-privilege-escalation-via-azure-api-permissions-abuse-74aee1006f48
+- https://posts.specterops.io/azure-privilege-escalation-via-service-principal-abuse-210ae2be2a5
