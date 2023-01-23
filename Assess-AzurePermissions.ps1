@@ -15,7 +15,9 @@
 
    It reports potentially dangerous role assignments which could lead to privilege escalation and report the users which might be able to abuse
    those dangerous role assignments. 
-   Work is based on research by Compass Security (@compasssecurity) and different blog posts / gists by Andy Robbins (@_wald0) of SpecterOps.
+   Work is based on research by Compass Security (@compasssecurity) and different blog posts / gists by Andy Robbins (@_wald0) of SpecterOps, e.g.: 
+   - https://posts.specterops.io/azure-privilege-escalation-via-azure-api-permissions-abuse-74aee1006f48
+   - https://posts.specterops.io/azure-privilege-escalation-via-service-principal-abuse-210ae2be2a5
 
    Note: If the script hangs during the Connect-AzAccount step, try to manually connect in PowerShell before running the script with: 
    Connect-AzAccount -TenantId <TenantId>
