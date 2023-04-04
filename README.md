@@ -6,7 +6,7 @@ The script collects data about service principals:
 - Assigned Azure AD roles
 
 It then checks first, if any of those are
-- Dangerous MS Graph API Permissions: RoleManagement.ReadWrite.Directory, AppRoleAssignment.ReadWrite.All
+- Dangerous MS Graph API Permissions: RoleManagement.ReadWrite.Directory, AppRoleAssignment.ReadWrite.All, UserAuthenticationMethod.ReadWrite.All
 - Dangerous Azure AD Roles: Global Administrator, Privileged Role Administrator, Privileged Authentication Administrator, Partner Tier2 Support
 - Potentially Dangerous Azure AD Roles: Application Administrator, Authentication Administrator, Azure AD joined device local administrator, Cloud Application Administrator, Cloud device Administrator, Exchange Administrator, Groups Administrator, Helpdesk Administrator, Hybrid Identity Administrator, Intune Administrator, Password Administrator, User Administrator, Directory Writers
 
