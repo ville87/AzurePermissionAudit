@@ -15,6 +15,7 @@ It then checks first, if any of those are
 Afterwards it checks, if any user was assigned
 - Azure AD Roles, which could allow the user to abuse one of those service principals: Application Administrator, Cloud Application Administrator, Hybrid Identity Administrator, Directory Synchronization Account, Partner Tier1 Support, Partner Tier2 Support
 - Azure RBAC Roles, which could allow the user to abuse one of those service principals: Owner, Contributor, Automation Contributor, User Access Administrator
+- MS Graph API permissions, which could allow the user to abuse one of those service principals: Application.ReadWrite.All
 
 Those are then reported to the console output.   
 
