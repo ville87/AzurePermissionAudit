@@ -20,6 +20,8 @@ Those are then reported to the console output.
 
 The script will ask you twice to provide Azure credentials, because it uses both the Az module and the AzureAD module which have each their own connecting cmdlets.   
 
+![Audit Script Overview](AzurePermissionAuditScript_10_2023.png)
+
 ## Limitations (TODO)
 - Currently, it is not checked if any user was provided with dangerous MS Graph API permissions which could allow to abuse one of the highly privileged service principals.
 - There is some bug where the script often hangs when connecting to Azure AD. If this is the case, manually connect in PowerShell before running the script in a non-elevated PowerShell session with:   

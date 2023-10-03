@@ -50,9 +50,12 @@
 
 .NOTES
 
-   Author:   Ville Koch (@vegvisir87), Compass Security Switzerland AG
-   Version:  V01.40 (beta)
-   Date:     21.09.2022
+   Author:   Ville Koch (@vegvisir87)
+   Version:  V01.50
+   Date:     03.10.2023
+
+   TODO:
+   - $DangerousMSGraphUserAssignments is currently not reported in any way... (Users with high MS Graph API permissions)
    
 #>
 ############################## script params section ########################
@@ -77,18 +80,20 @@ BEGIN{
     # The following part is used to create the array containing the dangerous MS graph permissions
     # MS documentation of app role IDs: https://docs.microsoft.com/en-us/graph/permissions-reference#all-permissions-and-ids
     [array]$CSVHeader = @("Id","Permission")
-    [array]$DangerousGraphPermissionsList = @("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8,RoleManagement.ReadWrite.Directory","06b708a9-e830-4db3-a914-8e69da51d44f,AppRoleAssignment.ReadWrite.All","UserAuthenticationMethod.ReadWrite.All,50483e42-d915-4231-9639-7fdb7fd190e5")
+    [array]$DangerousGraphPermissionsList = @("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8,RoleManagement.ReadWrite.Directory","06b708a9-e830-4db3-a914-8e69da51d44f,AppRoleAssignment.ReadWrite.All","50483e42-d915-4231-9639-7fdb7fd190e5,UserAuthenticationMethod.ReadWrite.All")
     [array]$DangerousGraphPermissions = $DangerousGraphPermissionsList | ConvertFrom-Csv -Header $CSVHeader
 
     # Collection of different roles is based on the following blog post https://posts.specterops.io/azure-privilege-escalation-via-service-principal-abuse-210ae2be2a5
     # Define dangerous Azure AD roles
-    [array]$MostDangerousAzADRBACRoles = @("Global Administrator","Privileged Role Administrator","Privileged Authentication Administrator","Partner Tier2 Support")
-    [array]$PotentiallyDangerousAzADRBACRoles = @("Application Administrator","Authentication Administrator","Azure AD joined device local administrator","Cloud Application Administrator","Cloud device Administrator","Exchange Administrator","Groups Administrator","Helpdesk Administrator","Hybrid Identity Administrator","Intune Administrator","Password Administrator","User Administrator","Directory Writers")
+    [array]$MostDangerousAzADRoles = @("Global Administrator","Privileged Role Administrator","Privileged Authentication Administrator","Partner Tier2 Support")
+    [array]$PotentiallyDangerousAzADRoles = @("Application Administrator","Authentication Administrator","Azure AD joined device local administrator","Cloud Application Administrator","Cloud device Administrator","Exchange Administrator","Groups Administrator","Helpdesk Administrator","Hybrid Identity Administrator","Intune Administrator","Password Administrator","User Administrator","Directory Writers")
     # Collection of Azure AD roles which allow an identity to potentially abuse high privileged service principals
     [array]$PotentialSPAbuseAzADRoles = @("Application Administrator","Cloud Application Administrator","Hybrid Identity Administrator","Directory Synchronization Account","Partner Tier1 Support","Partner Tier2 Support")
-
     # Collection of Azure RBAC roles which allow an identity to potentially abuse a high privileged service principal
     [array]$PotentialSPAbuseRBACRoles = @("Owner","Contributor","Automation Contributor","User Access Administrator")
+    # Collection of Graph Permissions which allow an identity to potentially abuse a high privileged service principal
+    [array]$PotentialSPAbuseGraphPermissionList = @("1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9,Application.ReadWrite.All")
+    [array]$PotentialSPAbuseGraphPermissions = $PotentialSPAbuseGraphPermissionList | ConvertFrom-Csv -Header $CSVHeader
 
     # Start script transcript if Transcript is set to true
     if($Transcript){
@@ -308,8 +313,38 @@ PROCESS
             }
         }
         
-        # TODO: Check on dangerous MS Graph API app role assignments of users. Currently we cover only service principals...
-        # (userdata we have already collected in variable $TestUsersObjects)
+        # Get all users app roles
+        $AffectedUsers = $TestUsersObjects
+        $UserAppRoleAssignments = $null
+        ForEach ($affecteduser in $AffectedUsers){
+                $req = $null
+                $UserAppRoleAssignmentURL = "https://graph.microsoft.com/v1.0/users/$($AffectedUser.id)/approleassignments"
+                $req = Invoke-RestMethod -Headers $Headers `
+                        -Uri $UserAppRoleAssignmentURL `
+                        -Method GET
+            $UserAppRoleAssignments += $req.value
+        }
+        $Userapproleassignmentcount = ($UserAppRoleAssignments | measure).Count
+        printInfo -info "Found $Userapproleassignmentcount AppRoleAssignments of users" -level "INFO"
+
+        # Export those into CSV
+        $MSGraphUserAppRolecsvexport = "$scriptpath\MSGraphUserAppRoles_$chosensub"+"_"+"$DateTimeString.csv"
+        printInfo -info "Exporting to the CSV file $MSGraphUserAppRolecsvexport" -level "INFO"
+        $UserAppRoleAssignments | Export-CSV -NoTypeInformation -Path $MSGraphUserAppRolecsvexport
+
+        # Find users with dangerous app roles
+        $DangerousMSGraphUserAssignments = @()
+        printInfo -info "Checking for dangerous AppRoleAssignments in the collected data of users..." -level "INFO"
+        ForEach ($UserAppRoleAssignment in $UserAppRoleAssignments){
+            $combinedobject = $null
+            if($DangerousGraphPermissions.Id -contains $UserAppRoleAssignment.appRoleId){
+                # add the content of the current role assignment plus extra property (the graph permission name) to an object
+                $combinedobject += $UserAppRoleAssignment
+                $graphpermissionname = $DangerousGraphPermissions | Where-Object { $_.Id -like $UserAppRoleAssignment.appRoleId} | select -ExpandProperty Permission
+                $combinedobject | Add-Member -Name 'appRoleName' -Type NoteProperty -Value $graphpermissionname
+                $DangerousMSGraphUserAssignments += $combinedobject
+            }
+        }
 
         $DangerousMSGraphAssignmentCount = ($DangerousMSGraphAssignments | measure).count
         printInfo -info "Done!" -level "INFO"
@@ -354,11 +389,11 @@ PROCESS
         $SPUserRoles = $UserRoles | where-object { $_.MemberType -eq "ServicePrincipal" }
         foreach($SPUserRole in $SPUserRoles){
             # Check for most dangerous Azure AD RBAC roles
-            if($MostDangerousAzADRBACRoles -contains $SPUserRole.RoleDisplayName){
+            if($MostDangerousAzADRoles -contains $SPUserRole.RoleDisplayName){
                 # printInfo -info "The service principal $($SPUserRole.MemberName) has assigned the Azure AD role $($SPUserRole.RoleDisplayName) which is a highly privileged role!" -level "WARNING"
                 $DangerousAzADRoleAssignments += $SPUserRole
             # Check for other potentially dangerous Azure AD RBAC roles
-            }elseif($PotentiallyDangerousAzADRBACRoles -contains $SPUserRole.RoleDisplayName){
+            }elseif($PotentiallyDangerousAzADRoles -contains $SPUserRole.RoleDisplayName){
                 #printInfo -info "The service principal $($SPUserRole.MemberName) has assigned the Azure AD role $($SPUserRole.RoleDisplayName) which is a potentially privileged role!" -level "WARNING"
                 $PotentiallyDangerousAzADRoleAssignments += $SPUserRole
             }else{
@@ -405,6 +440,42 @@ PROCESS
         $PotentialSPAbuseRBACUsersCount = ($PotentialSPAbuseRBACUsers | measure).count
         printInfo -info "Done." -level "INFO"
 
+        ############################################################################
+        ############################################################################
+        ################### MS Graph Permission collection       ###################
+        ############################################################################
+        ############################################################################
+        printInfo -info "Collecting all identities with Graph permissions who could potentially abuse highly privileged service principals..." -level "INFO"
+        
+        # Find service principals with the potentially dangerous graph permissions
+        $PotentialSPAbuseMSGraphAssignments = @()
+        printInfo -info "Checking for potentially dangerous AppRoleAssignments in the collected data..." -level "INFO"
+        ForEach ($AppRoleAssignment in $AppRoleAssignments){
+            $combinedobject = $null
+            if($PotentialSPAbuseGraphPermissions.Id -contains $AppRoleAssignment.appRoleId){
+                # add the content of the current role assignment plus extra property (the graph permission name) to an object
+                $combinedobject += $AppRoleAssignment
+                $graphpermissionname = $PotentialSPAbuseGraphPermissions | Where-Object { $_.Id -like $AppRoleAssignment.appRoleId} | select -ExpandProperty Permission
+                $combinedobject | Add-Member -Name 'appRoleName' -Type NoteProperty -Value $graphpermissionname
+                $PotentialSPAbuseMSGraphAssignments += $combinedobject
+            }
+        }
+
+        # Find users with the potentially dangerous graph permissions
+        printInfo -info "Checking for potentially dangerous AppRoleAssignments in the collected user data..." -level "INFO"
+        ForEach ($UserAppRoleAssignment in $UserAppRoleAssignments){
+            $combinedobject = $null
+            if($PotentialSPAbuseGraphPermissions.Id -contains $UserAppRoleAssignment.appRoleId){
+                # add the content of the current role assignment plus extra property (the graph permission name) to an object
+                $combinedobject += $UserAppRoleAssignment
+                $graphpermissionname = $PotentialSPAbuseGraphPermissions | Where-Object { $_.Id -like $UserAppRoleAssignment.appRoleId} | select -ExpandProperty Permission
+                $combinedobject | Add-Member -Name 'appRoleName' -Type NoteProperty -Value $graphpermissionname
+                $PotentialSPAbuseMSGraphAssignments += $combinedobject
+            }
+        }
+
+        $PotentialSPAbuseMSGraphAssignmentsCount = ($PotentialSPAbuseMSGraphAssignments | measure).count
+        printInfo -info "Done." -level "INFO"
         ############################################################################
         ############################################################################
         ################### Reporting of identified objects      ###################
@@ -468,8 +539,8 @@ PROCESS
         # The goal here is to report users with RBAC roles which could abuse one of the previously reported highly privileged service principals.
         # We have to check first which of the previously listed ones are in the Subscription of the dangerous RBAC role assignments, otherwise they are not relevant for reporting.
         
-        # For MS Graph API:
-        if(($PotentialSPAbuseRBACUsersCount -gt 0) -and ($DangerousMSGraphAssignmentCount -gt 0)){
+        # For Service Principals with Dangerous MS Graph API Permissions, check if users with potential SP Abuse RBAC role or potential MS Graph permission exist:
+        if((($PotentialSPAbuseRBACUsersCount -gt 0) -and ($DangerousMSGraphAssignmentCount -gt 0)) -or (($PotentialSPAbuseMSGraphAssignmentsCount -gt 0) -and ($DangerousMSGraphAssignmentCount -gt 0))){
             foreach($DangerousMSGraphAssignmententry in $DangerousMSGraphAssignments){
                 printInfo -info "Checking the dangerous MS Graph API AppRoleAssignment:" -level "INFO"
                 $DangerousMSGraphAssignmententry | select principalId,principalDisplayName,appRoleName
@@ -482,6 +553,15 @@ PROCESS
                 if($null -eq $subscriptionId){ $subscriptionId = "Unknown (Enterprise App?)" }
                 printInfo -info "Subscription of the current AppRoleAssignment is: $subscriptionId" -level "INFO"
                 "Subscription of the current AppRoleAssignment is: $subscriptionId"  |Out-File -FilePath $findingsReportfile -Append
+                # check for the potential MS Graph permission abuse path
+                if($PotentialSPAbuseMSGraphAssignmentsCount -gt 0){
+                    printInfo -info "The following identities have MS Graph API permission which could allow them to abuse this highly privileged service principal:" -level "WARNING"
+                    "The following identities have MS Graph API permission which could allow them to abuse this highly privileged service principal:"|Out-File -FilePath $findingsReportfile -Append
+                    foreach($PotentialSPAbuseMSGraphAssignment in $PotentialSPAbuseMSGraphAssignments){
+                        $PotentialSPAbuseMSGraphAssignment | Select-Object principalDisplayName,principalId,principalType,appRoleName
+                        $PotentialSPAbuseMSGraphAssignment | Select-Object principalDisplayName,principalId,principalType,appRoleName | Out-File -FilePath $findingsReportfile -Append
+                    }
+                }
                 $SPAbuseRBACUsers = @()
                 # For every user with an RBAC assigned role which potentially could allow him to abuse an SP, we check if the current SP is affected
                 foreach($PotentialSPAbuseRBACUser in $PotentialSPAbuseRBACUsers){
@@ -491,6 +571,7 @@ PROCESS
                         $SPAbuseRBACUsers += $PotentialSPAbuseRBACUser
                     }
                 }
+
                 $SPAbuseRBACUsersCount = ($SPAbuseRBACUsers | measure).Count
                 if($SPAbuseRBACUsersCount -gt 0){
                     printInfo -info "The following identities might be able to abuse this AppRoleAssignment for Privilege Escalation:" -level "WARNING"
@@ -504,23 +585,31 @@ PROCESS
                 }
                 Write-host "----------------------------------------------------------------------------"
             }
-            Write-host "############################################################################"
         }
+        Write-host "############################################################################"
 
-        # For Azure AD roles:
-        if(($PotentialSPAbuseRBACUsersCount -gt 0) -and ($dangerousAzADRoleexists)){
+        # For Service Principals with Dangerous Azure AD Roles, check if users with potential SP Abuse RBAC Roles or MS Graph permission exist:
+        if((($PotentialSPAbuseRBACUsersCount -gt 0) -and ($dangerousAzADRoleexists)) -or (($PotentialSPAbuseMSGraphAssignmentsCount -gt 0) -and ($dangerousAzADRoleexists))){
             # First, combine the $PotentiallyDangerousAzADRoleAssignments and $DangerousAzADRoleAssignments to $DangerousAzADRoleAssignmentsCombined
             # This way we can go through Service Principals with multiple role assignments only once
             $DangerousAzADRoleAssignmentsCombined = @()
             foreach($DangerousAzADRoleAssignmentitem in $DangerousAzADRoleAssignments) { $DangerousAzADRoleAssignmentsCombined += $DangerousAzADRoleAssignmentitem}
             foreach($PotentiallyDangerousAzADRoleAssignmentitem in $PotentiallyDangerousAzADRoleAssignments) { $DangerousAzADRoleAssignmentsCombined += $PotentiallyDangerousAzADRoleAssignmentitem}
-            
-            # now check their corresponding apps and what subscription is affected, to check if any of the gathered RBAC user permissions could be abused...
             $uniqueSPIDs = $DangerousAzADRoleAssignmentsCombined.MemberID | select -Unique
             foreach($uniqueSPID in $uniqueSPIDs){
                 $CurrentSPAzADRoleAssignments = ($DangerousAzADRoleAssignmentsCombined | Where-Object { $_.MemberID -like $uniqueSPID} | select -ExpandProperty RoleDisplayName)
                 printInfo -info "Checking the dangerous Azure AD role assignments (Roles: $($CurrentSPAzADRoleAssignments -join ',')) of the service principal $uniqueSPID" -level "INFO"
                 "Checking the dangerous Azure AD role assignments (Roles: $($CurrentSPAzADRoleAssignments -join ',')) of the service principal $uniqueSPID" |Out-File -FilePath $findingsReportfile -Append
+                # check for the potential MS Graph permission abuse path
+                if($PotentialSPAbuseMSGraphAssignmentsCount -gt 0){
+                    printInfo -info "The following identities have MS Graph API permission which could allow them to abuse this highly privileged service principal:" -level "WARNING"
+                    "The following identities have MS Graph API permission which could allow them to abuse this highly privileged service principal:"|Out-File -FilePath $findingsReportfile -Append
+                    foreach($PotentialSPAbuseMSGraphAssignment in $PotentialSPAbuseMSGraphAssignments){
+                        $PotentialSPAbuseMSGraphAssignment | Select-Object principalDisplayName,principalId,principalType,appRoleName
+                        $PotentialSPAbuseMSGraphAssignment | Select-Object principalDisplayName,principalId,principalType,appRoleName | Out-File -FilePath $findingsReportfile -Append
+                    }
+                }
+                # now check their corresponding apps and what subscription is affected, to check if any of the gathered RBAC user permissions could be abused...
                 $CurrentSPResource = Get-AzResource -Name (Get-AzADServicePrincipal -ObjectId $uniqueSPID).DisplayName
                 $CurrentSPSubscriptionId = $CurrentSPResource.SubscriptionId # Note that this does not return anything for enterprise apps not deployed in a subscription (but via AzureAD), so we set it to Unknown!
                 if($null -eq $CurrentSPSubscriptionId){ $CurrentSPSubscriptionId = "Unknown (Enterprise App?)" }
@@ -546,9 +635,9 @@ PROCESS
                     printInfo -info "No identities found which could abuse this AppRoleAssignment." -level "INFO"
                     "No identities found which could abuse this AppRoleAssignment."|Out-File -FilePath $findingsReportfile -Append
                 }
-                Write-host "############################################################################"
             }
         }
+        Write-host "############################################################################"
         printInfo -info "Done." -level "INFO"
 
         $ErrorLevel = 0
