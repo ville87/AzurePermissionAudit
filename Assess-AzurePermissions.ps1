@@ -80,7 +80,7 @@ BEGIN{
     # The following part is used to create the array containing the dangerous MS graph permissions
     # MS documentation of app role IDs: https://docs.microsoft.com/en-us/graph/permissions-reference#all-permissions-and-ids
     [array]$CSVHeader = @("Id","Permission")
-    [array]$DangerousGraphPermissionsList = @("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8,RoleManagement.ReadWrite.Directory","06b708a9-e830-4db3-a914-8e69da51d44f,AppRoleAssignment.ReadWrite.All","50483e42-d915-4231-9639-7fdb7fd190e5,UserAuthenticationMethod.ReadWrite.All")
+    [array]$DangerousGraphPermissionsList = @("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8,RoleManagement.ReadWrite.Directory","06b708a9-e830-4db3-a914-8e69da51d44f,AppRoleAssignment.ReadWrite.All","50483e42-d915-4231-9639-7fdb7fd190e5,UserAuthenticationMethod.ReadWrite.All","19dbc75e-c2e2-444c-a770-ec69d8559fc7,Directory.ReadWrite.All")
     [array]$DangerousGraphPermissions = $DangerousGraphPermissionsList | ConvertFrom-Csv -Header $CSVHeader
 
     # Collection of different roles is based on the following blog post https://posts.specterops.io/azure-privilege-escalation-via-service-principal-abuse-210ae2be2a5
