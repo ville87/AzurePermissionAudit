@@ -356,6 +356,7 @@ PROCESS
         ############################################################################
 
         printInfo -info "Collecting Azure AD role assignments" -level "INFO"
+	printInfo -info "ATTENTION: Please note that this currently does not return all assignments! For a full list, go to the Entra ID portal -> Roles and administrators -> Download Assignments" -level "WARNING"
         # Build our users and roles object
         $UserRoles = Get-AzureADDirectoryRole | ForEach-Object {
                 
