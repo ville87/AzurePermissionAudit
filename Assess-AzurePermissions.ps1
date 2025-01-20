@@ -51,8 +51,8 @@
 .NOTES
 
    Author:   Ville Koch (@vegvisir87)
-   Version:  V01.50
-   Date:     03.10.2023
+   Version:  V01.60
+   Date:     20.01.2025
 
    TODO:
    - $DangerousMSGraphUserAssignments is currently not reported in any way... (Users with high MS Graph API permissions)
@@ -167,6 +167,7 @@ PROCESS
         ################### Connect and get token ###################
         printInfo -info "Connecting to Azure with the Az PowerShell module. This will start the authentication process..." -level "INFO"
         $tenantId = Read-host "Please provide the tenant Id"
+        $tenantId = $tenantId.trim()
         Connect-AzAccount -TenantID $tenantId
         if($subscriptionID -ne ""){
             printInfo -info "Setting context to the provided subscription..." -level "INFO"
@@ -186,6 +187,7 @@ PROCESS
                 printInfo -info "Subscriptionname: $subname`t`t`tSubscriptionID: $subid" -level "INFO"
             }
             $chosensub = Read-Host "Please provide the ID of the subscription you want to assess"
+            $chosensub = $chosensub.trim()
             Get-AzSubscription -SubscriptionId $chosensub | Set-AzContext
             printInfo -info "Set context to subscription $chosensub" -level "INFO"
         }
