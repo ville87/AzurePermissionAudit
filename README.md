@@ -1,12 +1,14 @@
 # AzurePermissionAudit
 Script to assess permissions and roles in Azure to check if there is any possible privilege escalation path.   
 
+> **_Note:_** This script is not realiable to cover all highly privileged roles or potential privilege escalation chains and was used for personal testing! I recommend to use AzureHound (https://github.com/SpecterOps/AzureHound) instead. The following website which assigns different roles and permissions into tiers is highly recommended to understand which roles and permissions are privileged and was used to update the roles and permissions in this script: https://aztier.com/   
+
 The script collects data about service principals:
 - Assigned MS Graph API permissions
 - Assigned Azure AD roles
 
 It then checks first, if any of those are
-- Dangerous MS Graph API Permissions: RoleManagement.ReadWrite.Directory, AppRoleAssignment.ReadWrite.All, UserAuthenticationMethod.ReadWrite.All, Directory.ReadWrite.All
+- Dangerous MS Graph API Permissions: AdministrativeUnit.ReadWrite.All, Application.ReadWrite.All, Application.ReadWrite.OwnedBy, AppRoleAssignment.ReadWrite.All, DelegatedAdminRelationship.ReadWrite.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementRBAC.ReadWrite.All, DeviceManagementScripts.ReadWrite.All, Directory.ReadWrite.All, Domain.ReadWrite.All, EntitlementManagement.ReadWrite.All, Group-OnPremisesSyncBehavior.ReadWrite.All, Group.ReadWrite.All, GroupMember.ReadWrite.All, Organization.ReadWrite.All, Policy.ReadWrite.AuthenticationMethod, Policy.ReadWrite.ConditionalAccess, Policy.ReadWrite.PermissionGrant, PrivilegedAccess.ReadWrite.AzureAD, PrivilegedAccess.ReadWrite.AzureADGroup, PrivilegedAccess.ReadWrite.AzureResources, PrivilegedAssignmentSchedule.ReadWrite.AzureADGroup, PrivilegedEligibilitySchedule.ReadWrite.AzureADGroup, RoleAssignmentSchedule.ReadWrite.Directory, RoleEligibilitySchedule.ReadWrite.Directory, RoleManagement.ReadWrite.Directory, RoleManagementPolicy.ReadWrite.AzureADGroup, RoleManagementPolicy.ReadWrite.Directory, SecurityIdentitiesActions.ReadWrite.All, SignInIdentifier.ReadWrite.All, Synchronization.ReadWrite.All, User.DeleteRestore.All, User.EnableDisableAccount.All, User.ReadWrite.All, User-PasswordProfile.ReadWrite.All, UserAuthenticationMethod.ReadWrite.All
 - Dangerous Azure AD Roles: Global Administrator, Privileged Role Administrator, Privileged Authentication Administrator, Partner Tier2 Support
 - Potentially Dangerous Azure AD Roles: Application Administrator, Authentication Administrator, Azure AD joined device local administrator, Cloud Application Administrator, Cloud device Administrator, Exchange Administrator, Groups Administrator, Helpdesk Administrator, Hybrid Identity Administrator, Intune Administrator, Password Administrator, User Administrator, Directory Writers
 
